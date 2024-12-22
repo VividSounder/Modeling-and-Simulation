@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multi-Model Synthetic Data Analysis</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Multi-Model Synthetic Data Analysis</h1>
+            <p class="subtitle">Generate and analyze synthetic data with feature-specific configurations</p>
+        </header>
+
+        <main>
+            <section class="config-section">
+                <h2>Data Configuration</h2>
+                <form id="dataForm">
+                    <div class="form-group">
+                        <label for="num_samples">Number of Samples per Class:</label>
+                        <input type="number" id="num_samples" name="num_samples" value="1000" min="100" max="100000">
+                        <span class="help-text">Recommended: 1,000 - 10,000 samples</span>
+                    </div>
+
+                    <div class="form-group">
+                        <h3>Data Split Configuration</h3>
+                        <div class="input-group">
+                            <label for="test_size">Test Set Size:</label>
+                            <input type="number" id="test_size" name="test_size" 
+                                   value="0.2" min="0.1" max="0.4" step="0.05">
+                            <span class="help-text">Proportion of data for testing (0.1-0.4)</span>
+                        </div>
+                        <div class="input-group">
+                            <label for="val_size">Validation Set Size:</label>
+                            <input type="number" id="val_size" name="val_size" 
+                                   value="0.25" min="0.1" max="0.4" step="0.05">
+                            <span class="help-text">Proportion of remaining data for validation (0.1-0.4)</span>
+                        </div>
+                        <div class="input-group">
+                            <label for="random_state">Random Seed:</label>
+                            <input type="number" id="random_state" name="random_state" 
+                                   value="42" min="0">
+                            <span class="help-text">Random seed for reproducibility</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group feature-config">
+                        <h3>Feature Configuration</h3>
+                        
+                        <!-- Feature Names Input -->
+                        <div class="input-group">
+                            <label for="feature-names">Enter feature names (comma-separated)</label>
+                            <input type="text" id="feature-names" 
+                                   placeholder="e.g., length (mm), width (mm), density (g/cm³), pH"
+                                   required>
+                            <span class="help-text">Enter meaningful feature names with units if applicable</span>
+                        </div>
+
+                        <!-- Class Names Input -->
+                        <div class="input-group">
+                            <label for="class-names">Enter class names (comma-separated)</label>
+                            <input type="text" id="class-names" 
+                                   placeholder="e.g., Ampalaya, Banana, Cabbage"
+                                   required>
+                            <span class="help-text">Enter the names of different classes/categories</span>
+                        </div>
+
+                        <!-- Target Feature Selection -->
+                        <div class="input-group">
+                            <label for="target_column">Select Target Feature:</label>
+                            <select id="target_column" name="target_column" required>
+                                <option value="">Select target feature...</option>
+                            </select>
+                            <span class="help-text">Select the feature to predict</span>
+                        </div>
+
+                        <!-- Class-Specific Settings -->
+                        <div id="class-settings">
+                            <h4>Class-Specific Settings</h4>
+                            <div id="class-configs"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="generate-btn">
+                        <span class="btn-text">Generate & Analyze Data</span>
+                        <div class="loader" style="display: none;"></div>
+                    </button>
+                </form>
+            </section>
+
+            <section class="results-section" style="display: none;">
+                <h2>Analysis Results</h2>
+                
+                <!-- Data Split Information -->
+                <div class="split-info">
+                    <h3>Data Split Summary</h3>
+                    <div class="split-stats">
+                        <div class="split-stat" id="train-split">
+                            <h4>Training Set</h4>
+                            <p class="split-size"></p>
+                            <p class="split-ratio"></p>
+                        </div>
+                        <div class="split-stat" id="val-split">
+                            <h4>Validation Set</h4>
+                            <p class="split-size"></p>
+                            <p class="split-ratio"></p>
+                        </div>
+                        <div class="split-stat" id="test-split">
+                            <h4>Test Set</h4>
+                            <p class="split-size"></p>
+                            <p class="split-ratio"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="showTab('model-comparison')">Model Comparison</button>
+                    <button class="tab-btn" onclick="showTab('data-distribution')">Data Distribution</button>
+                    <button class="tab-btn" onclick="showTab('data-tables')">Data Tables</button>
+                </div>
+
+                <div id="model-comparison" class="tab-content active">
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <h3>Model Performance Metrics</h3>
+                            <table id="model-metrics"></table>
+                        </div>
+                        <div id="model-visualizations" class="visualization-grid"></div>
+                    </div>
+                </div>
+
+                <div id="data-distribution" class="tab-content">
+                    <div id="distribution-plots" class="visualization-grid"></div>
+                </div>
+
+                <div id="data-tables" class="tab-content">
+                    <div class="data-tabs">
+                        <button class="data-tab-btn active" onclick="showDataTab('synthetic-data')">Synthetic Data</button>
+                        <button class="data-tab-btn" onclick="showDataTab('train-data')">Training Data</button>
+                        <button class="data-tab-btn" onclick="showDataTab('validation-data')">Validation Data</button>
+                        <button class="data-tab-btn" onclick="showDataTab('test-data')">Test Data</button>
+                    </div>
+
+                    <!-- Download buttons -->
+                    <div class="download-buttons">
+                        <button onclick="downloadDataset('train')" class="download-btn">
+                            Download Training Set
+                        </button>
+                        <button onclick="downloadDataset('validation')" class="download-btn">
+                            Download Validation Set
+                        </button>
+                        <button onclick="downloadDataset('test')" class="download-btn">
+                            Download Test Set
+                        </button>
+                    </div>
+
+                    <div id="synthetic-data" class="data-table-content active"></div>
+                    <div id="train-data" class="data-table-content"></div>
+                    <div id="validation-data" class="data-table-content"></div>
+                    <div id="test-data" class="data-table-content"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Feature Settings Template -->
+        <template id="feature-settings-template">
+            <div class="feature-settings">
+                <div class="input-group">
+                    <label>Mean</label>
+                    <input type="number" step="0.01" class="feature-mean" required>
+                    <div class="number-controls">
+                        <button class="decrease">-</button>
+                        <button class="increase">+</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Standard Deviation</label>
+                    <input type="number" step="0.01" min="0" class="feature-std" required>
+                    <div class="number-controls">
+                        <button class="decrease">-</button>
+                        <button class="increase">+</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Class Config Template -->
+        <template id="class-config-template">
+            <div class="class-config">
+                <div class="class-header">
+                    <h5 class="class-name"></h5>
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <span>Set specific values</span>
+                    </label>
+                </div>
+                <div class="feature-settings-container"></div>
+            </div>
+        </template>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
